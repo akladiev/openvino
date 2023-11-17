@@ -522,6 +522,20 @@ jobs:
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
           if-no-files-found: 'error'
 
+  Conformance_Results:
+    # Needed to workaround status deadlock in matrix job if it's required and skipped
+    # https://github.com/actions/runner/issues/952
+    runs-on: ubuntu-latest
+    needs: Conformance
+    if: ${{ always() }}
+    steps:
+      - run: exit 1
+        if: >- 
+        ${{ 
+          contains(needs.Conformance.result, 'failure') || 
+          contains(needs.Conformance.result, 'cancelled')
+        }}
+
   ONNX_Runtime:
     name: ONNX Runtime Integration
     needs: Build
