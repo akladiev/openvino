@@ -113,6 +113,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Returns product components changed in a given PR or commit')
     parser.add_argument('--pr', type=int, required=False, help='PR number. If not set, --commit is used')
     parser.add_argument('-s', '--commit-sha', required=False, help='Commit SHA. If not set, --pr is used')
+    parser.add_argument('-f', '--ref_name', help='GitHub ref name')
     parser.add_argument('-r', '--repo', help='GitHub repository')
     parser.add_argument('-p', '--pattern', default=None, help='Pattern to extract component name from PR label. '
                                                               'If not set, any label is considered a component name')
@@ -161,6 +162,8 @@ def main():
     gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
     pr = gh_api.pulls.get(args.pr) if args.pr else None
 
+    is_merge_queue = args.ref_name.starts_with('gh-readonly-queue/')
+
     with open(Path(args.components_config_schema), 'r') as schema_file:
         schema = yaml.safe_load(schema_file)
 
@@ -172,18 +175,18 @@ def main():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 
-    no_match_files_changed = False
+    run_full_scope = False
     # For now, we don't want to apply smart ci rules for post-commits
-    is_postcommit = not pr
+    is_postcommit = not pr and not is_merge_queue
     if is_postcommit:
         logger.info(f"The run is a post-commit run, executing full validation scope for all components")
+        run_full_scope = True
     else:
         no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
         if no_match_files_changed:
             logger.info(f"There are changed files that don't match any pattern in labeler config, "
                         f"executing full validation scope for all components")
-
-    run_full_scope = is_postcommit or no_match_files_changed
+            run_full_scope = True
 
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
