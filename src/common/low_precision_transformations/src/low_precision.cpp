@@ -68,6 +68,7 @@
 #include "low_precision/relu.hpp"
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
+#include "low_precision/slice.hpp"
 #include "low_precision/space_to_batch.hpp"
 #include "low_precision/split.hpp"
 #include "low_precision/shuffle_channels.hpp"
@@ -190,7 +191,7 @@ MarkupOptimizations::MarkupOptimizations(
 
 bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
-    ov::pass::Manager markup(get_pass_config());
+    ov::pass::Manager markup(get_pass_config(), "LPT:MarkupOptimizations");
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     if (!precisionRestrictions.empty()) {
@@ -217,7 +218,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
-    ov::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig, "LowPrecision");
 
     auto prerequisites = manager.register_pass<ov::pass::GraphRewrite>();
     const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};
@@ -267,6 +268,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, ReshapeTransformation, params)
     ADD_MATCHER(common, SqueezeTransformation, params)
     ADD_MATCHER(common, ShuffleChannelsTransformation, params)
+    ADD_MATCHER(common, SliceTransformation, params)
     ADD_MATCHER(common, SpaceToBatchTransformation, params)
     ADD_MATCHER(common, SplitTransformation, params)
     ADD_MATCHER(common, StridedSliceTransformation, params)
